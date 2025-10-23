@@ -1,8 +1,72 @@
-# Supabase
-.branches
-.temp
+# =====================
+# Node.js dependencies
+# =====================
+node_modules/
+# Optional lock files (choose one if you want to ignore)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# dotenvx
-.env.keys
+# =====================
+# Next.js build / output
+# =====================
+.next/
+out/
+build/
+
+# =====================
+# Environment files
+# =====================
+.env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.*.local
+
+# =====================
+# Logs
+# =====================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# =====================
+# OS generated files
+# =====================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =====================
+# IDE / Editor files
+# =====================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# =====================
+# Temporary files
+# =====================
+*.tmp
+*.swp
+*.bak
+*.old
+
+# =====================
+# Test / Coverage
+# =====================
+coverage/
+*.lcov
+
+# =====================
+# Optional: Storybook & other tools
+# =====================
+storybook-static/
+out-tsc/
+dist/
