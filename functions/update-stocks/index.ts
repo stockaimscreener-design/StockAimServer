@@ -34,7 +34,7 @@ const TOP_N_DELTA = Number(Deno.env.get("TOP_N_DELTA") || "500");
 const FRESHNESS_MS = Number(Deno.env.get("FRESHNESS_MS") || "300000"); // 5 minutes
 const THROTTLE_MS = 500; // delay between batches
 
-const PRIMARY_API_URL = String(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "https://stock-api-x35p.vercel.app");
+const PRIMARY_API_URL = String(Deno.env.get("PRIMARY_API_URL") || "https://stock-api-x35p.vercel.app");
 
 // Primary API endpoint
 //const PRIMARY_API_URL = ;
