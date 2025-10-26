@@ -10,16 +10,19 @@ SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname LIKE 'stocks-%';
 -- =====================================================
 -- 1. DAILY FULL SYNC - 6:00 AM ET
 -- =====================================================
+
+SELECT cron.unschedule('stocks-full-daily');
 SELECT cron.schedule('stocks-full-daily', '0 10,11 * * 1-5',
   $$SELECT CASE 
     WHEN EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/New_York') IN (0, 6) THEN NULL
     WHEN EXISTS (SELECT 1 FROM us_market_holidays WHERE holiday_date = (NOW() AT TIME ZONE 'America/New_York')::DATE) THEN NULL
     WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') != 6 THEN NULL
     ELSE net.http_post(
-      url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=4500&offset=0',
+      url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=5000&offset=0',
       headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtb3ZwbHR6YWNoY2N5b3Vna2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDA0NTY5MywiZXhwIjoyMDc1NjIxNjkzfQ.eHkqNd-W-kJWu9AVtdMLrlU8oTAjKESw5Yu8Q9XNY1o')
     ) END AS r;$$
 );
+
 
 -- =====================================================
 -- 2. PRE-MARKET: Every 15 min, 4:00-9:30 AM ET
@@ -155,10 +158,59 @@ SELECT cron.schedule('stocks-afterhours-batch-8', '8,38 * * * 1-5',
   $SELECT CASE WHEN EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/New_York') IN (0, 6) THEN NULL WHEN EXISTS (SELECT 1 FROM us_market_holidays WHERE holiday_date = (NOW() AT TIME ZONE 'America/New_York')::DATE) THEN NULL WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') < 16 OR EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') >= 20 THEN NULL ELSE net.http_post(url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=500&offset=4000', headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtb3ZwbHR6YWNoY2N5b3Vna2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDA0NTY5MywiZXhwIjoyMDc1NjIxNjkzfQ.eHkqNd-W-kJWu9AVtdMLrlU8oTAjKESw5Yu8Q9XNY1o')) END AS r;$
 );
 
+
 -- =====================================================
--- VERIFY ALL JOBS CREATED
+-- ADD BATCH-9 TO COVER 5000 STOCKS (4500-5000)
+-- Run this to extend coverage from 4500 to 5000
 -- =====================================================
-SELECT jobid, jobname, schedule, active FROM cron.job WHERE jobname LIKE 'stocks-%' ORDER BY jobname;
+
+-- 2. Add Pre-market Batch-9 (offset=4500)
+SELECT cron.schedule('stocks-premarket-batch-9', '9,24,39,54 * * * 1-5',
+  $$SELECT CASE WHEN EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/New_York') IN (0, 6) THEN NULL 
+    WHEN EXISTS (SELECT 1 FROM us_market_holidays WHERE holiday_date = (NOW() AT TIME ZONE 'America/New_York')::DATE) THEN NULL 
+    WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') < 4 OR EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') > 9 THEN NULL 
+    WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') = 9 AND EXTRACT(MINUTE FROM NOW() AT TIME ZONE 'America/New_York') >= 30 THEN NULL 
+    ELSE net.http_post(url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=500&offset=4500', 
+      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtb3ZwbHR6YWNoY2N5b3Vna2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDA0NTY5MywiZXhwIjoyMDc1NjIxNjkzfQ.eHkqNd-W-kJWu9AVtdMLrlU8oTAjKESw5Yu8Q9XNY1o')) 
+    END AS r;$$
+);
+
+-- 3. Add Market Hours Batch-9 (offset=4500)
+SELECT cron.schedule('stocks-market-batch-9', '*/5 * * * 1-5',
+  $$SELECT CASE WHEN EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/New_York') IN (0, 6) THEN NULL 
+    WHEN EXISTS (SELECT 1 FROM us_market_holidays WHERE holiday_date = (NOW() AT TIME ZONE 'America/New_York')::DATE) THEN NULL 
+    WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') < 9 OR EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') >= 16 THEN NULL 
+    WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') = 9 AND EXTRACT(MINUTE FROM NOW() AT TIME ZONE 'America/New_York') < 30 THEN NULL 
+    ELSE net.http_post(url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=500&offset=4500', 
+      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtb3ZwbHR6YWNoY2N5b3Vna2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDA0NTY5MywiZXhwIjoyMDc1NjIxNjkzfQ.eHkqNd-W-kJWu9AVtdMLrlU8oTAjKESw5Yu8Q9XNY1o')) 
+    END AS r;$$
+);
+
+-- 4. Add After-hours Batch-9 (offset=4500)
+SELECT cron.schedule('stocks-afterhours-batch-9', '9,39 * * * 1-5',
+  $$SELECT CASE WHEN EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/New_York') IN (0, 6) THEN NULL 
+    WHEN EXISTS (SELECT 1 FROM us_market_holidays WHERE holiday_date = (NOW() AT TIME ZONE 'America/New_York')::DATE) THEN NULL 
+    WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') < 16 OR EXTRACT(HOUR FROM NOW() AT TIME ZONE 'America/New_York') >= 20 THEN NULL 
+    ELSE net.http_post(url := 'https://bmovpltzachccyougkdw.supabase.co/functions/v1/stock-scheduler?mode=full&limit=500&offset=4500', 
+      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtb3ZwbHR6YWNoY2N5b3Vna2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDA0NTY5MywiZXhwIjoyMDc1NjIxNjkzfQ.eHkqNd-W-kJWu9AVtdMLrlU8oTAjKESw5Yu8Q9XNY1o')) 
+    END AS r;$$
+);
+
+-- =====================================================
+-- VERIFY ALL JOBS (Should show 30 jobs total)
+-- =====================================================
+SELECT jobid, jobname, schedule, active 
+FROM cron.job 
+WHERE jobname LIKE 'stocks-%' 
+ORDER BY jobname;
+
+-- =====================================================
+-- ✅ DONE! Coverage Summary:
+-- - Pre-market (9 batches): 4500-5000 stocks
+-- - Market hours (10 batches): 5000 stocks  
+-- - After-hours (10 batches): 5000 stocks
+-- - Daily full sync: 5000 stocks
+-- =====================================================
 
 -- =====================================================
 -- ✅ DONE! Summary:
